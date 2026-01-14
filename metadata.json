@@ -1,0 +1,8 @@
+{
+  "name": "Aura - Mental Health Intelligence",
+  "description": "A sophisticated, emotionally responsive mental health platform featuring real-time analysis, secure journaling, and empathetic AI interaction.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
