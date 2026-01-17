@@ -22,9 +22,7 @@ export const Navigation: React.FC = () => {
           
           {/* Logo Area */}
           <NavLink to={AppRoute.LANDING} className="flex items-center gap-3 group opacity-90 hover:opacity-100 transition-opacity">
-            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-textMain text-background">
-               <span className="font-serif italic font-bold text-lg leading-none pt-1">A</span>
-            </div>
+            <img src="/favicon.svg" alt="Aura" className="w-8 h-8" />
             <span className="text-lg font-medium tracking-tight text-textMain font-serif">
               Aura
             </span>
