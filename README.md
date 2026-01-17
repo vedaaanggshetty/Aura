@@ -19,14 +19,14 @@ Aura is a private sanctuary for your thoughts. It's a mental health journaling a
 
 ### Chat Interface
 <div align="center">
-  <img width="800" height="400" alt="Chat Interface" src="/public/chatCom.png" />
+  <img width="1000" height="600" alt="Chat Interface" src="/public/chatCom.png" />
 </div>
 
 Aura's chat interface provides a safe, judgment-free space for expressing your thoughts. The AI companion responds with empathy and understanding, helping you navigate complex emotions and find clarity.
 
 ### Emotion Analysis
 <div align="center">
-  <img width="800" height="400" alt="Emotion Dashboard" src="/public/emotion.png" />
+  <img width="1000" height="600" alt="Emotion Dashboard" src="/public/emotion.png" />
 </div>
 
 Gain deeper insights into your emotional patterns with Aura's passive analysis system, featuring visual dashboards that track mood fluctuations and provide actionable insights for your mental wellness journey.
