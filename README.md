@@ -1,5 +1,5 @@
 <div align="center">
-  <img width="1200" height="475" alt="Aura Banner" src="https://github.com/vedaaanggshetty/Aura/assets/171825535/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="1200" height="475" alt="Aura Banner" src="https://github.com/vedaaanggshetty/Aura/assets/banner.png" />
   <h1>Aura</h1>
   <p><em>A quiet space for your mind.</em></p>
 </div>
