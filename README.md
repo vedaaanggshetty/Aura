@@ -1,7 +1,8 @@
 <div align="center">
-  <img width="1200" height="475" alt="Aura Banner" src="/public/banner.png" />
-  <h1>Aura</h1>
+ <h1>Aura</h1>
   <p><em>A quiet space for your mind.</em></p>
+  <img width="1200" height="475" alt="Aura Banner" src="/public/banner.png" />
+ 
 </div>
 
 Aura is a private sanctuary for your thoughts. It's a mental health journaling application that provides a gentle, supportive space for reflection, pattern recognition, and emotional clarity—all with privacy-first design and local encryption.
