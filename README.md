@@ -3,7 +3,7 @@
   <p><em>A quiet space for your mind.</em></p>
    
 Aura is a private sanctuary for your thoughts. It's a mental health journaling application that provides a gentle, supportive space for reflection, pattern recognition, and emotional clarity—all with privacy-first design and local encryption.
-  <img width="1200" height="475" alt="Aura Banner" src="/public/banner.png" />
+  <img width="1000" height="375" alt="Aura Banner" src="/public/banner.png" />
  
 
 </div>
@@ -16,6 +16,20 @@ Aura is a private sanctuary for your thoughts. It's a mental health journaling a
 - **Emotional Clarity**: Passive, privacy-first analysis to identify patterns in mood and behavior
 - **Beautiful Interface**: Minimalist, calming design that reduces cognitive load
 - **Vision Mode**: Visual mood tracking and pattern recognition
+
+### Chat Interface
+<div align="center">
+  <img width="800" height="400" alt="Chat Interface" src="/public/chatCom.png" />
+</div>
+
+Aura's chat interface provides a safe, judgment-free space for expressing your thoughts. The AI companion responds with empathy and understanding, helping you navigate complex emotions and find clarity.
+
+### Emotion Analysis
+<div align="center">
+  <img width="800" height="400" alt="Emotion Dashboard" src="/public/emotion.png" />
+</div>
+
+Gain deeper insights into your emotional patterns with Aura's passive analysis system, featuring visual dashboards that track mood fluctuations and provide actionable insights for your mental wellness journey.
 
 ## Quick Start
 
