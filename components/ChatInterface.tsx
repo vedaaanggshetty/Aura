@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { ArrowUp, StopCircle, Feather, MoreHorizontal } from 'lucide-react';
 import { Message, MessageRole } from '../types';
@@ -25,12 +25,7 @@ const shouldShowTimestamp = (current: number, prev: number) => {
 // --- AUTH GATE ---
 const AuthGate = () => (
   <div className="min-h-screen flex items-center justify-center bg-background px-6">
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
-      className="max-w-md w-full text-center space-y-10"
-    >
+    <div className="max-w-md w-full text-center space-y-10">
       <div className="flex justify-center">
         <div className="w-12 h-12 rounded-full bg-surface border border-borderDim flex items-center justify-center text-textMain">
           <Feather size={20} strokeWidth={1.5} />
@@ -49,7 +44,7 @@ const AuthGate = () => (
           Enter Sanctuary
         </button>
       </SignInButton>
-    </motion.div>
+    </div>
   </div>
 );
 
@@ -269,10 +264,7 @@ const ChatSession: React.FC = () => {
                   </div>
                 )}
 
-                <motion.div 
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
+                <div 
                   className={`
                     flex flex-col w-full mb-8
                     ${msg.role === MessageRole.USER ? 'items-end' : 'items-start'}
@@ -308,15 +300,14 @@ const ChatSession: React.FC = () => {
                        <span className="w-1.5 h-1.5 bg-textMuted/40 rounded-full animate-pulse" />
                     </div>
                   )}
-                </motion.div>
+                </div>
               </React.Fragment>
             );
           })}
 
           {/* Typing Indicator */}
           {isTyping && (
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            <div 
               className="flex items-center gap-2 pl-2 py-4 mb-4"
             >
                <span className="text-xs text-textMuted italic font-serif pr-2">Aura is thinking</span>
@@ -325,7 +316,7 @@ const ChatSession: React.FC = () => {
                  <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite_0.3s]" />
                  <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite_0.6s]" />
                </div>
-            </motion.div>
+            </div>
           )}
           
           <div ref={messagesEndRef} className="h-8" />
