@@ -2,7 +2,7 @@ import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navigation } from './components/Navigation';
 import { Landing } from './components/Landing';
-import { ChatInterface } from './components/ChatInterface';
+import ChatInterface from './components/ChatInterface';
 import { EmotionDashboard } from './components/EmotionDashboard';
 import { VisionCapture } from './components/VisionCapture';
 import { AppRoute } from './types';
