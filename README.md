@@ -1,5 +1,5 @@
 <div align="center">
-  <img width="1200" height="475" alt="Aura Banner" src="./assets/banner.png" />
+  <img width="1200" height="475" alt="Aura Banner" src="banner.png" />
   <h1>Aura</h1>
   <p><em>A quiet space for your mind.</em></p>
 </div>
