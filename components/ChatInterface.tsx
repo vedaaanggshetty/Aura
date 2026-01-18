@@ -50,36 +50,9 @@ const ChatSession: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    try {
-      return localStorage.getItem('aura_sidebar_open') === 'true';
-    } catch {
-      return false;
-    }
-  });
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('aura_sidebar_open', String(isSidebarOpen));
-    } catch {
-      // ignore
-    }
-  }, [isSidebarOpen]);
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('aura_sidebar_open', String(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
-  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -184,32 +157,19 @@ const ChatSession: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background relative overflow-hidden">
+    <div className="flex h-full bg-background relative overflow-hidden">
       <ConversationSidebar
-        isOpen={isSidebarOpen}
-        onToggle={toggleSidebar}
         onConversationSelect={handleConversationSelect}
         activeConversationId={activeConversationId}
       />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-surface/20">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-surface/50 blur-[100px] rounded-full opacity-60" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-surface/20 blur-[100px] rounded-full opacity-30" />
         </div>
 
-        <div className="h-24 flex-shrink-0 flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={toggleSidebar}
-              className="p-2 rounded-lg hover:bg-surface/80 transition-colors"
-            >
-              <Menu size={20} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 scrollbar-hide z-10">
-          <div className="max-w-3xl mx-auto flex flex-col pb-8">
+        <div className="flex-1 overflow-y-auto px-6 md:px-8 py-2 scrollbar-hide z-10">
+          <div className="max-w-3xl mx-auto">
             {messages.map((msg, idx) => {
               const prevMsg = messages[idx - 1];
               const showTime = !prevMsg || shouldShowTimestamp(msg.timestamp, prevMsg.timestamp);
@@ -217,8 +177,8 @@ const ChatSession: React.FC = () => {
               return (
                 <React.Fragment key={msg.id}>
                   {showTime && (
-                    <div className="flex justify-center my-12 opacity-0 animate-fade-in">
-                      <span className="text-xs font-serif italic text-textMuted tracking-widest border-b border-borderDim pb-1 px-4">
+                    <div className="flex justify-center my-6 opacity-60 animate-fade-in">
+                      <span className="text-[10px] font-serif italic text-textMuted/60 tracking-widest border-b border-borderDim/30 pb-0.5 px-3">
                         {formatDate(msg.timestamp)}
                       </span>
                     </div>
@@ -226,63 +186,67 @@ const ChatSession: React.FC = () => {
 
                   <div
                     className={`
-                      flex flex-col w-full mb-8
-                      ${msg.role === MessageRole.USER ? 'items-end' : 'items-start'}
+                      mb-4
+                      ${msg.role === MessageRole.USER ? 'flex justify-end' : 'flex justify-start'}
                     `}
                   >
-                    <span
-                      className={`
-                        text-[10px] uppercase tracking-widest text-textMuted mb-2 px-1
-                        ${msg.role === MessageRole.USER ? 'text-right' : 'text-left'}
-                      `}
-                    >
-                      {msg.role === MessageRole.USER ? 'You' : 'Aura'}
-                    </span>
+                    <div className="max-w-[80%]">
+                      <span
+                        className={`
+                          text-[9px] uppercase tracking-wider text-textMuted/50 mb-1 block
+                          ${msg.role === MessageRole.USER ? 'text-right' : 'text-left'}
+                        `}
+                      >
+                        {msg.role === MessageRole.USER ? 'You' : 'Aura'}
+                      </span>
 
-                    <div
-                      className={`
-                        relative max-w-[95%] md:max-w-[85%] rounded-2xl
-                        ${msg.role === MessageRole.USER
-                          ? 'bg-surface/60 px-8 py-6 text-textMain text-lg font-light leading-relaxed border border-borderDim/30 shadow-sm'
-                          : 'px-1 py-2 text-textMain text-lg font-light leading-relaxed'}
-                      `}
-                    >
-                      {msg.role === MessageRole.ASSISTANT ? (
-                        <div className="prose prose-lg prose-neutral dark:prose-invert max-w-none font-light leading-8">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <div
+                        className={`
+                          rounded-2xl
+                          ${msg.role === MessageRole.USER
+                            ? 'bg-surface/70 px-6 py-4 text-textMain text-base font-light leading-relaxed border border-borderDim/40 shadow-sm'
+                            : 'px-6 py-4 text-textMain text-base font-light leading-relaxed'}
+                        `}
+                      >
+                        {msg.role === MessageRole.ASSISTANT ? (
+                          <div className="prose prose-base prose-neutral dark:prose-invert max-w-none font-light leading-7">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap leading-7">{msg.content}</p>
+                        )}
+                      </div>
+
+                      {msg.isStreaming && msg.role === MessageRole.ASSISTANT && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="w-1.5 h-1.5 bg-textMuted/30 rounded-full animate-pulse" />
                         </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap leading-8">{msg.content}</p>
                       )}
                     </div>
-
-                    {msg.isStreaming && msg.role === MessageRole.ASSISTANT && (
-                      <div className="flex items-center gap-2 mt-4 ml-2">
-                        <span className="w-1.5 h-1.5 bg-textMuted/40 rounded-full animate-pulse" />
-                      </div>
-                    )}
                   </div>
                 </React.Fragment>
               );
             })}
 
             {isTyping && (
-              <div className="flex items-center gap-2 pl-2 py-4 mb-4">
-                <span className="text-xs text-textMuted italic font-serif pr-2">Aura is thinking</span>
-                <div className="flex gap-1">
-                  <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite]" />
-                  <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite_0.3s]" />
-                  <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite_0.6s]" />
+              <div className="flex justify-start mb-4">
+                <div className="max-w-[80%]">
+                  <span className="text-[10px] text-textMuted/50 italic font-serif mb-1 block">Aura is thinking</span>
+                  <div className="flex gap-1">
+                    <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite]" />
+                    <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite_0.3s]" />
+                    <span className="w-1 h-1 bg-textMuted/30 rounded-full animate-[breathe_1.5s_infinite_0.6s]" />
+                  </div>
                 </div>
               </div>
             )}
 
-            <div ref={messagesEndRef} className="h-8" />
+            <div ref={messagesEndRef} className="h-4" />
           </div>
         </div>
 
-        <div className="flex-shrink-0 z-20 pb-10 pt-6 px-4 bg-gradient-to-t from-background via-background to-transparent">
-          <div className="max-w-3xl mx-auto relative flex flex-col gap-4">
+        <div className="flex-shrink-0 z-20 pb-6 pt-2 px-6 bg-gradient-to-t from-background via-background/95 to-transparent">
+          <div className="max-w-3xl mx-auto relative flex flex-col gap-3">
             <div className="flex flex-wrap gap-2 justify-center opacity-80 hover:opacity-100 transition-opacity">
               {SUGGESTIONS.map((s, i) => (
                 <button
@@ -297,12 +261,12 @@ const ChatSession: React.FC = () => {
 
             <div
               className="
-                relative group rounded-3xl
-                bg-elevated dark:bg-surface
-                shadow-soft
-                border border-borderDim
-                transition-all duration-500
-                focus-within:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] focus-within:-translate-y-1
+                relative group rounded-2xl
+                bg-surface/50 backdrop-blur-sm
+                shadow-sm
+                border border-borderDim/40
+                transition-all duration-300
+                focus-within:shadow-md focus-within:border-borderDim/60 focus-within:bg-surface/60
               "
             >
               <textarea
@@ -318,29 +282,27 @@ const ChatSession: React.FC = () => {
                 placeholder="Write your thoughts..."
                 className="
                   w-full bg-transparent border-none
-                  rounded-3xl
-                  px-8 py-6
-                  text-lg font-light leading-relaxed
+                  rounded-2xl
+                  px-6 py-4
+                  text-base font-light leading-relaxed
                   placeholder-textMuted/40
                   focus:ring-0 resize-none
-                  min-h-[100px] max-h-[300px]
+                  min-h-[80px] max-h-[240px]
                 "
                 rows={1}
               />
 
               <div className="absolute right-4 bottom-4 flex items-center gap-3">
-                <span className="text-[10px] text-textMuted/30 font-medium tracking-widest uppercase pointer-events-none hidden sm:block mr-2">
+                <span className="text-[9px] text-textMuted/25 font-medium tracking-widest uppercase pointer-events-none hidden sm:block mr-2">
                   Return to send
                 </span>
                 <button
                   onClick={() => handleSend()}
                   disabled={!input.trim() || isTyping}
-                  className={`
-                    w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500
                     ${input.trim()
-                      ? 'bg-textMain text-background hover:scale-110 shadow-md'
-                      : 'bg-surface border border-borderDim text-borderDim cursor-not-allowed'}
-                  `}
+                      ? 'bg-textMain text-background hover:scale-105 shadow-sm'
+                      : 'bg-surface/60 border border-borderDim/40 text-textMuted/50 cursor-not-allowed'}`}
                 >
                   {isTyping ? <StopCircle size={18} /> : <ArrowUp size={20} strokeWidth={2} />}
                 </button>
