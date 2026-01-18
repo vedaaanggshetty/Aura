@@ -19,7 +19,9 @@ export const Landing: React.FC = () => {
 
       {/* Hero Section */}
       <main className="flex-grow container mx-auto px-6 flex flex-col items-center justify-center relative z-10 pt-32 pb-20">
-        <div className="max-w-3xl mx-auto text-center space-y-12">
+        <div 
+          className="max-w-3xl mx-auto text-center space-y-12"
+        >
           {/* Badge */}
           <div 
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-borderDim bg-surface/50 backdrop-blur-sm"

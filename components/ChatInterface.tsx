@@ -24,7 +24,7 @@ const AuthGate = () => (
   <div className="min-h-screen flex items-center justify-center bg-background px-6">
     <div className="max-w-md w-full text-center space-y-10">
       <div className="flex justify-center">
-        <div className="w-12 h-12 rounded-full bg-surface border border-borderDim flex items-center justify-center text-textMain">
+        <div className="hidden md:flex md:flex-col w-72 h-full bg-surface/20 border-r border-borderDim/30 s-center justify-center text-textMain">
           <Feather size={20} strokeWidth={1.5} />
         </div>
       </div>
@@ -37,7 +37,7 @@ const AuthGate = () => (
       </div>
 
       <SignInButton mode="modal">
-        <button className="w-full py-4 bg-textMain text-background rounded-xl font-medium tracking-wide hover:shadow-lg hover:-translate-y-0.5 transition-all duration-500">
+        <button className="w-full py-2 px-4 bg-surface/25 text-textMain rounded-lg font-medium hover:bg-surface/40 transition-colors">
           Enter Sanctuary
         </button>
       </SignInButton>
@@ -157,7 +157,7 @@ const ChatSession: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full bg-background relative overflow-hidden">
+    <div className="flex h-[calc(100vh-5rem)] bg-background relative overflow-hidden">
       <ConversationSidebar
         onConversationSelect={handleConversationSelect}
         activeConversationId={activeConversationId}
@@ -168,7 +168,7 @@ const ChatSession: React.FC = () => {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-surface/20 blur-[100px] rounded-full opacity-30" />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 md:px-8 py-2 scrollbar-hide z-10">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 scrollbar-hide z-10 min-w-0">
           <div className="max-w-3xl mx-auto">
             {messages.map((msg, idx) => {
               const prevMsg = messages[idx - 1];
@@ -177,7 +177,7 @@ const ChatSession: React.FC = () => {
               return (
                 <React.Fragment key={msg.id}>
                   {showTime && (
-                    <div className="flex justify-center my-6 opacity-60 animate-fade-in">
+                    <div className="flex justify-center my-2 opacity-60 animate-fade-in">
                       <span className="text-[10px] font-serif italic text-textMuted/60 tracking-widest border-b border-borderDim/30 pb-0.5 px-3">
                         {formatDate(msg.timestamp)}
                       </span>
@@ -186,7 +186,7 @@ const ChatSession: React.FC = () => {
 
                   <div
                     className={`
-                      mb-4
+                      mb-3
                       ${msg.role === MessageRole.USER ? 'flex justify-end' : 'flex justify-start'}
                     `}
                   >
@@ -204,8 +204,8 @@ const ChatSession: React.FC = () => {
                         className={`
                           rounded-2xl
                           ${msg.role === MessageRole.USER
-                            ? 'bg-surface/70 px-6 py-4 text-textMain text-base font-light leading-relaxed border border-borderDim/40 shadow-sm'
-                            : 'px-6 py-4 text-textMain text-base font-light leading-relaxed'}
+                            ? 'bg-surface/70 px-4 py-3 text-textMain text-base font-light leading-relaxed border border-borderDim/40 shadow-sm'
+                            : 'px-4 py-3 text-textMain text-base font-light leading-relaxed'}
                         `}
                       >
                         {msg.role === MessageRole.ASSISTANT ? (
@@ -229,7 +229,7 @@ const ChatSession: React.FC = () => {
             })}
 
             {isTyping && (
-              <div className="flex justify-start mb-4">
+              <div className="flex justify-start mb-3">
                 <div className="max-w-[80%]">
                   <span className="text-[10px] text-textMuted/50 italic font-serif mb-1 block">Aura is thinking</span>
                   <div className="flex gap-1">
@@ -245,8 +245,8 @@ const ChatSession: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-shrink-0 z-20 pb-6 pt-2 px-6 bg-gradient-to-t from-background via-background/95 to-transparent">
-          <div className="max-w-3xl mx-auto relative flex flex-col gap-3">
+        <div className="flex-shrink-0 z-20 pb-4 pt-2 px-4 bg-gradient-to-t from-background via-background/95 to-transparent">
+          <div className="max-w-3xl mx-auto flex flex-col gap-2">
             <div className="flex flex-wrap gap-2 justify-center opacity-80 hover:opacity-100 transition-opacity">
               {SUGGESTIONS.map((s, i) => (
                 <button
@@ -262,7 +262,7 @@ const ChatSession: React.FC = () => {
             <div
               className="
                 relative group rounded-2xl
-                bg-surface/50 backdrop-blur-sm
+                bg-surface/40 backdrop-blur-sm
                 shadow-sm
                 border border-borderDim/40
                 transition-all duration-300
