@@ -46,10 +46,10 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
   return (
     <div
-      className="hidden md:flex md:flex-col w-72 bg-surface/20 border-r border-borderDim/30 h-[calc(100vh-5rem)]"
+      className="hidden md:flex md:flex-col w-72 h-full flex bg-surface/20 border-r border-borderDim/30"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-borderDim/20">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-borderDim/10">
         <h3 className="text-sm font-medium text-textMain/90">Conversations</h3>
       </div>
 
@@ -58,7 +58,9 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         {conversations.map((conversation) => (
           <div
             key={conversation.id}
-            className="px-5 py-4 cursor-pointer transition-all duration-200 border-b border-transparent hover:bg-surface/30 rounded-lg mx-2 mb-1"
+            className={`px-4 py-3 cursor-pointer transition-all duration-200 hover:bg-surface/40 rounded-lg mx-2 mb-1 relative group ${
+              activeConversationId === conversation.id ? 'bg-surface/60 border border-borderDim/15 shadow-sm' : ''
+            }`}
             onClick={() => {
               chatHistoryStore.setActiveConversation(conversation.id);
               onConversationSelect(conversation.id);
@@ -69,7 +71,7 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                 {conversation.title || 'New Conversation'}
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-textMuted/50">
+                <span className="text-xs text-textMuted/40">
                   {new Date(conversation.lastUpdated).toLocaleDateString()}
                 </span>
                 <button
@@ -77,7 +79,7 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                     e.stopPropagation();
                     setActiveMenuId(activeMenuId === conversation.id ? null : conversation.id);
                   }}
-                  className="p-1 text-textMuted/40 hover:text-textMuted/70 transition-colors"
+                  className="opacity-0 group-hover:opacity-80 p-1.5 text-textMuted/30 hover:text-textMuted/60 transition-all duration-200"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="5" r="1.5" />
@@ -107,10 +109,10 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       </div>
 
       {/* New Conversation Button */}
-      <div className="px-5 py-4 border-t border-borderDim/20">
+      <div className="px-4 py-3 border-t border-borderDim/10">
         <button
           onClick={handleNewConversation}
-          className="w-full py-3 px-4 bg-surface/30 text-textMain rounded-lg font-medium hover:bg-surface/50 transition-colors"
+          className="w-full py-2 px-4 bg-surface/25 text-textMain rounded-lg font-medium hover:bg-surface/40 transition-colors"
         >
           New Conversation
         </button>

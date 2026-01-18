@@ -2,14 +2,11 @@ import React, { ButtonHTMLAttributes, InputHTMLAttributes } from 'react';
 import { motion } from 'framer-motion';
 
 export const GlassCard: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className = '' }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 15 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+  <div 
     className={`glass-panel rounded-2xl p-8 ${className}`}
   >
     {children}
-  </motion.div>
+  </div>
 );
 
 export const Button: React.FC<ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'tidal' }> = ({ 

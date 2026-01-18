@@ -1,7 +1,7 @@
 import { BehavioralPattern } from './types';
 
 // Clerk Configuration
-export const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_YOUR_CLERK_PUBLISHABLE_KEY_HERE';
+export const clerkPubKey = (import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_YOUR_CLERK_PUBLISHABLE_KEY_HERE';
 
 // Configuration for local NGROK or Backend
 // If you are running the `server/index.js`, use http://localhost:3001
