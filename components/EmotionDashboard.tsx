@@ -76,17 +76,17 @@ export const EmotionDashboard: React.FC = () => {
   };
 
   return (
-    <div className="pt-28 pb-12 px-4 max-w-7xl mx-auto space-y-8 bg-background transition-colors duration-500">
+    <div className="pt-24 pb-16 px-4 max-w-7xl mx-auto space-y-6 bg-background transition-colors duration-500">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
         <div>
           <h1 className="text-4xl font-serif italic text-textMain mb-2">Resonance</h1>
           <p className="text-textSec font-light">Analyzing your emotional baseline over 7 days.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Mood Trend Chart */}
         <GlassCard className="h-[450px]">
           <h3 className="text-lg font-medium text-textMain mb-8">Mood & Stress Correlation</h3>

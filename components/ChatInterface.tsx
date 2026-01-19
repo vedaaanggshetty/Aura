@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ArrowUp, StopCircle, Feather, Menu } from 'lucide-react';
+import { ArrowUp, StopCircle, Feather, Menu, Mic, MicOff } from 'lucide-react';
 import { Message, MessageRole } from '../types';
 import { chatService, ChatMessage } from '../services/chatService';
+import { voiceService, VoiceRecordingState } from '../services/voiceService';
 import { SUGGESTIONS } from '../constants';
 import { SignedIn, SignedOut, SignInButton, useUser } from './AuthContext';
 import ConversationSidebar from './ConversationSidebar';
@@ -51,8 +52,14 @@ const ChatSession: React.FC = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [voiceRecording, setVoiceRecording] = useState<VoiceRecordingState>({
+    isRecording: false,
+    isProcessing: false,
+    duration: 0
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recordingTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -156,6 +163,64 @@ const ChatSession: React.FC = () => {
     }
   };
 
+  const handleVoiceRecording = async () => {
+    if (voiceRecording.isRecording) {
+      // Stop recording
+      setVoiceRecording(prev => ({ ...prev, isRecording: false, isProcessing: true }));
+      
+      try {
+        const audioBlob = await voiceService.stopRecording();
+        const analysisResult = await voiceService.analyzeVoice(audioBlob);
+        
+        // Create a message with voice emotion data
+        const conversationId = activeConversationId ?? chatHistoryStore.getActiveConversation()?.id;
+        if (conversationId && user?.id) {
+          const voiceMsg: Message = {
+            id: Date.now().toString(),
+            role: MessageRole.USER,
+            content: "Voice message recorded",
+            timestamp: Date.now(),
+            voiceEmotion: analysisResult.analysis
+          };
+          
+          chatHistoryStore.addMessage(conversationId, voiceMsg);
+          
+          // Trigger AI response
+          handleSend("I just recorded a voice message. Can you help me reflect on how I'm feeling?");
+        }
+      } catch (error) {
+        console.error('Voice recording failed:', error);
+      } finally {
+        setVoiceRecording({ isRecording: false, isProcessing: false, duration: 0 });
+        if (recordingTimer.current) {
+          clearInterval(recordingTimer.current);
+          recordingTimer.current = null;
+        }
+      }
+    } else {
+      // Start recording
+      try {
+        await voiceService.startRecording();
+        setVoiceRecording({ isRecording: true, isProcessing: false, duration: 0 });
+        
+        // Start duration timer
+        recordingTimer.current = setInterval(() => {
+          setVoiceRecording(prev => ({ ...prev, duration: prev.duration + 1 }));
+        }, 1000);
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimer.current) {
+        clearInterval(recordingTimer.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="flex h-[calc(100vh-5rem)] bg-background relative overflow-hidden">
       <ConversationSidebar
@@ -248,6 +313,12 @@ const ChatSession: React.FC = () => {
         <div className="flex-shrink-0 z-20 pb-4 pt-2 px-4 bg-gradient-to-t from-background via-background/95 to-transparent">
           <div className="max-w-3xl mx-auto flex flex-col gap-2">
             <div className="flex flex-wrap gap-2 justify-center opacity-80 hover:opacity-100 transition-opacity">
+              {voiceRecording.isRecording && (
+                <div className="flex items-center gap-2 text-xs text-red-400 animate-pulse">
+                  <MicOff size={12} />
+                  <span>Recording {voiceRecording.duration}s</span>
+                </div>
+              )}
               {SUGGESTIONS.map((s, i) => (
                 <button
                   key={i}
@@ -293,6 +364,19 @@ const ChatSession: React.FC = () => {
               />
 
               <div className="absolute right-4 bottom-4 flex items-center gap-3">
+                <button
+                  onClick={handleVoiceRecording}
+                  disabled={voiceRecording.isProcessing || isTyping}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500
+                    ${voiceRecording.isRecording
+                      ? 'bg-red-500 text-white animate-pulse hover:bg-red-600'
+                      : voiceRecording.isProcessing
+                      ? 'bg-surface/60 border border-borderDim/40 text-textMuted/50 cursor-not-allowed'
+                      : 'bg-surface/60 border border-borderDim/40 text-textMuted/70 hover:text-textMain hover:bg-surface/80'}`}
+                >
+                  {voiceRecording.isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+                
                 <span className="text-[9px] text-textMuted/25 font-medium tracking-widest uppercase pointer-events-none hidden sm:block mr-2">
                   Return to send
                 </span>

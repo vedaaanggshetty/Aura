@@ -17,6 +17,7 @@ export interface Message {
   timestamp: number;
   sentiment?: SentimentAnalysis;
   isStreaming?: boolean;
+  voiceEmotion?: AnalysisState;
 }
 
 export interface SentimentAnalysis {

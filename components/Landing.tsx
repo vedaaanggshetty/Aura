@@ -18,7 +18,7 @@ export const Landing: React.FC = () => {
       </div>
 
       {/* Hero Section */}
-      <main className="flex-grow container mx-auto px-6 flex flex-col items-center justify-center relative z-10 pt-32 pb-20">
+      <main className="flex-grow container mx-auto px-6 flex flex-col items-center justify-center relative z-10 pt-24 pb-16">
         <div 
           className="max-w-3xl mx-auto text-center space-y-12"
         >
@@ -90,7 +90,7 @@ export const Landing: React.FC = () => {
               ].map((feature, idx) => (
                 <div 
                   key={idx} 
-                  className="space-y-4"
+                  className="space-y-8"
                 >
                   <div className="w-10 h-10 rounded-full bg-surface border border-borderDim flex items-center justify-center text-textMain shadow-sm">
                     <feature.icon strokeWidth={1.2} size={20} />

@@ -14,6 +14,8 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const http = require('http');
 const { WebSocketServer } = require('ws');
+const multer = require('multer');
+const { analyzeAudioFeatures, convertToAnalysisState } = require('./voiceAnalysis');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,6 +25,19 @@ const PORT = 3001;
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// Configure multer for audio file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('audio/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only audio files are allowed'));
+    }
+  }
+});
 
 // --- MOCK DATABASE ---
 let chatHistory = [];
@@ -76,6 +91,30 @@ app.post('/api/analyze', (req, res) => {
   const { text } = req.body;
   const score = Math.random() * 2 - 1; // -1 to 1
   res.json({ score, sentiment: score > 0 ? 'positive' : 'negative' });
+});
+
+// Voice Analysis Endpoint
+app.post('/analyze-voice', upload.single('audio'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file provided' });
+    }
+
+    // Analyze audio features
+    const voiceAnalysis = analyzeAudioFeatures(req.file.buffer);
+    
+    // Convert to Aura's AnalysisState format
+    const analysisState = convertToAnalysisState(voiceAnalysis);
+
+    res.json({
+      success: true,
+      analysis: analysisState,
+      confidence: voiceAnalysis.confidence
+    });
+  } catch (error) {
+    console.error('Voice analysis error:', error);
+    res.status(500).json({ error: 'Voice analysis failed' });
+  }
 });
 
 // --- WEBSOCKETS (Optional Real-time Layer) ---

@@ -41,16 +41,16 @@ export const VisionCapture: React.FC = () => {
   }, []);
 
   return (
-    <div className="pt-32 pb-12 px-4 max-w-5xl mx-auto bg-background transition-colors duration-500 min-h-screen">
+    <div className="pt-24 pb-16 px-4 max-w-5xl mx-auto bg-background transition-colors duration-500 min-h-screen">
       
-      <div className="text-center mb-12">
+      <div className="text-center mb-8">
         <h1 className="text-4xl font-serif italic text-textMain mb-4">Non-verbal Insight</h1>
         <p className="text-textSec max-w-xl mx-auto font-light">
           Aura uses local privacy-first vision processing to understand emotional cues you might miss.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 max-w-6xl mx-auto">
         
         {/* Main Camera Feed */}
         <div className="lg:col-span-2 space-y-8">
