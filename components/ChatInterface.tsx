@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ArrowUp, StopCircle, Feather, Menu, Mic, MicOff } from 'lucide-react';
+import { ArrowUp, StopCircle, Feather, Mic, MicOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { Message, MessageRole } from '../types';
 import { chatService, ChatMessage } from '../services/chatService';
 import { voiceService, VoiceRecordingState } from '../services/voiceService';
+import { textToSpeechService } from '../services/textToSpeechService';
 import { SUGGESTIONS } from '../constants';
 import { SignedIn, SignedOut, SignInButton, useUser } from './AuthContext';
 import ConversationSidebar from './ConversationSidebar';
@@ -57,6 +58,16 @@ const ChatSession: React.FC = () => {
     isProcessing: false,
     duration: 0
   });
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentSpeakingId, setCurrentSpeakingId] = useState<string | null>(null);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [voiceSettings, setVoiceSettings] = useState({
+    rate: 0.85,
+    pitch: 0.95,
+    volume: 0.7,
+    voiceIndex: undefined as number | undefined
+  });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recordingTimer = useRef<NodeJS.Timeout | null>(null);
@@ -165,14 +176,12 @@ const ChatSession: React.FC = () => {
 
   const handleVoiceRecording = async () => {
     if (voiceRecording.isRecording) {
-      // Stop recording
       setVoiceRecording(prev => ({ ...prev, isRecording: false, isProcessing: true }));
       
       try {
         const audioBlob = await voiceService.stopRecording();
         const analysisResult = await voiceService.analyzeVoice(audioBlob);
         
-        // Create a message with voice emotion data
         const conversationId = activeConversationId ?? chatHistoryStore.getActiveConversation()?.id;
         if (conversationId && user?.id) {
           const voiceMsg: Message = {
@@ -184,8 +193,6 @@ const ChatSession: React.FC = () => {
           };
           
           chatHistoryStore.addMessage(conversationId, voiceMsg);
-          
-          // Trigger AI response
           handleSend("I just recorded a voice message. Can you help me reflect on how I'm feeling?");
         }
       } catch (error) {
@@ -198,12 +205,10 @@ const ChatSession: React.FC = () => {
         }
       }
     } else {
-      // Start recording
       try {
         await voiceService.startRecording();
         setVoiceRecording({ isRecording: true, isProcessing: false, duration: 0 });
         
-        // Start duration timer
         recordingTimer.current = setInterval(() => {
           setVoiceRecording(prev => ({ ...prev, duration: prev.duration + 1 }));
         }, 1000);
@@ -213,13 +218,52 @@ const ChatSession: React.FC = () => {
     }
   };
 
+  const handleTextToSpeech = async (text: string, messageId: string) => {
+    console.log('TTS button clicked for message:', messageId);
+    
+    // If currently speaking this message, stop
+    if (isSpeaking && currentSpeakingId === messageId) {
+      console.log('Stopping speech');
+      textToSpeechService.stop();
+      setIsSpeaking(false);
+      setCurrentSpeakingId(null);
+      return;
+    }
+
+    // Stop any other speech
+    if (isSpeaking) {
+      console.log('Stopping other speech');
+      textToSpeechService.stop();
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    try {
+      console.log('Starting TTS with settings:', voiceSettings);
+      setIsSpeaking(true);
+      setCurrentSpeakingId(messageId);
+      
+      await textToSpeechService.speak(text, voiceSettings);
+      
+      console.log('TTS completed successfully');
+    } catch (error) {
+      console.error('Text-to-speech failed:', error);
+      alert(`Unable to play audio: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your browser settings.`);
+    } finally {
+      setIsSpeaking(false);
+      setCurrentSpeakingId(null);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (recordingTimer.current) {
         clearInterval(recordingTimer.current);
       }
+      textToSpeechService.stop();
     };
   }, []);
+
+  const voiceOptions = textToSpeechService.getVoiceOptions();
 
   return (
     <div className="flex h-[calc(100vh-5rem)] bg-background relative overflow-hidden">
@@ -232,6 +276,110 @@ const ChatSession: React.FC = () => {
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-surface/20 blur-[100px] rounded-full opacity-30" />
         </div>
+
+        {/* Voice Settings Panel */}
+        {showVoiceSettings && (
+          <div className="absolute top-4 right-4 z-30 bg-surface/95 backdrop-blur-md rounded-2xl border border-borderDim/40 shadow-lg p-6 w-80">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-textMain">Aura's Voice</h3>
+              <button
+                onClick={() => setShowVoiceSettings(false)}
+                className="text-textMuted hover:text-textMain transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-textSec mb-2 block">Voice</label>
+                <select
+                  value={voiceSettings.voiceIndex ?? ''}
+                  onChange={(e) => setVoiceSettings(prev => ({
+                    ...prev,
+                    voiceIndex: e.target.value ? parseInt(e.target.value) : undefined
+                  }))}
+                  className="w-full bg-surface/60 border border-borderDim/40 rounded-lg px-3 py-2 text-sm text-textMain focus:outline-none focus:border-borderDim/60"
+                >
+                  <option value="">Auto (Recommended)</option>
+                  {voiceOptions.map(voice => (
+                    <option key={voice.index} value={voice.index}>
+                      {voice.name} {voice.isRecommended ? '⭐' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-textSec mb-2 block flex justify-between">
+                  <span>Speed</span>
+                  <span className="text-textMuted">{voiceSettings.rate.toFixed(2)}x</span>
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.5"
+                  step="0.05"
+                  value={voiceSettings.rate}
+                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, rate: parseFloat(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-textSec mb-2 block flex justify-between">
+                  <span>Pitch</span>
+                  <span className="text-textMuted">{voiceSettings.pitch.toFixed(2)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.5"
+                  step="0.05"
+                  value={voiceSettings.pitch}
+                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, pitch: parseFloat(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-textSec mb-2 block flex justify-between">
+                  <span>Volume</span>
+                  <span className="text-textMuted">{Math.round(voiceSettings.volume * 100)}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.1"
+                  value={voiceSettings.volume}
+                  onChange={(e) => setVoiceSettings(prev => ({ ...prev, volume: parseFloat(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
+
+              <button
+                onClick={() => setVoiceSettings({ rate: 0.85, pitch: 0.95, volume: 0.7, voiceIndex: undefined })}
+                className="w-full py-2 px-4 bg-surface/60 text-textSec rounded-lg text-xs hover:bg-surface/80 transition-colors"
+              >
+                Reset to Defaults
+              </button>
+
+              <button
+                onClick={async () => {
+                  try {
+                    await textToSpeechService.speak("Hello, I'm Aura. This is a test of my voice.", voiceSettings);
+                  } catch (error) {
+                    alert(`Voice test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  }
+                }}
+                className="w-full py-2 px-4 bg-textMain/20 text-textMain rounded-lg text-xs hover:bg-textMain/30 transition-colors"
+              >
+                Test Voice
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 scrollbar-hide z-10 min-w-0">
           <div className="max-w-3xl mx-auto">
@@ -281,6 +429,31 @@ const ChatSession: React.FC = () => {
                           <p className="whitespace-pre-wrap leading-7">{msg.content}</p>
                         )}
                       </div>
+
+                      {msg.role === MessageRole.ASSISTANT && msg.content && !msg.isStreaming && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            onClick={() => handleTextToSpeech(msg.content, msg.id)}
+                            className={`p-2.5 rounded-full transition-all duration-300 border
+                              ${isSpeaking && currentSpeakingId === msg.id
+                                ? 'bg-textMain/20 text-textMain border-textMain/40 animate-pulse shadow-lg'
+                                : 'bg-surface/60 text-textMain/80 border-borderDim/40 hover:text-textMain hover:bg-surface/80 hover:border-borderDim/60 hover:shadow-md'}`}
+                            title={isSpeaking && currentSpeakingId === msg.id ? 'Stop speaking' : 'Listen to this message'}
+                          >
+                            {isSpeaking && currentSpeakingId === msg.id ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                          </button>
+
+                          {!isSpeaking && (
+                            <button
+                              onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                              className="p-2.5 rounded-full bg-surface/40 text-textMuted/70 border border-borderDim/40 hover:text-textMain hover:bg-surface/60 hover:border-borderDim/60 transition-all duration-300"
+                              title="Voice settings"
+                            >
+                              <Settings size={16} />
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       {msg.isStreaming && msg.role === MessageRole.ASSISTANT && (
                         <div className="flex items-center gap-2 mt-2">
