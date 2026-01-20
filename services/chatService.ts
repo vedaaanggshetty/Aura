@@ -1,5 +1,5 @@
-// Chat Service - NGROK Backend Connection
-// Backend URL: https://fred-athetoid-setsuko.ngrok-free.dev
+// Chat Service - Local Backend Connection
+// Backend URL: http://localhost:3003
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -14,7 +14,7 @@ export interface ChatResponse {
 }
 
 export class ChatService {
-  private readonly API_URL = 'https://fred-athetoid-setsuko.ngrok-free.dev/api/chat';
+  private readonly API_URL = 'http://localhost:3003/api/chat';
 
   async sendMessage(messages: ChatMessage[]): Promise<ChatResponse> {
     try {
@@ -125,6 +125,7 @@ export class ChatService {
       console.error('Chat streaming error:', error);
       
       // Graceful fallback for streaming errors
+      console.log('Falling back to non-streaming sendMessage');
       const fallbackResponse = await this.sendMessage(messages);
       onToken(fallbackResponse.content);
       return fallbackResponse;

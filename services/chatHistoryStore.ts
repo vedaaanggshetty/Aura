@@ -145,6 +145,7 @@ class ChatHistoryStoreImpl implements ChatHistoryStore {
   }
 
   updateLastAssistantMessage(conversationId: string, content: string): void {
+    console.log('Updating last assistant message:', conversationId, content);
     const conversations = this.getConversations();
     const conversationIndex = conversations.findIndex(conv => conv.id === conversationId);
     
@@ -157,12 +158,15 @@ class ChatHistoryStoreImpl implements ChatHistoryStore {
     const lastMessage = conversation.messages[conversation.messages.length - 1];
     
     if (lastMessage && lastMessage.role === MessageRole.ASSISTANT) {
+      console.log('Before update - last message content:', lastMessage.content);
       lastMessage.content = content;
       lastMessage.isStreaming = true;
       conversation.lastUpdated = Date.now();
+      console.log('After update - last message content:', lastMessage.content);
     }
 
     this.saveToStorage(conversations);
+    console.log('Notifying subscribers...');
     this.notifySubscribers();
   }
 

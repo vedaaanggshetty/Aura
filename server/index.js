@@ -21,7 +21,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const PORT = 3001;
+const PORT = 3003;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -56,9 +56,10 @@ app.post('/api/chat', async (req, res) => {
   
   console.log('Received message:', lastUserMessage);
 
-  // Set up headers for streaming
-  res.setHeader('Content-Type', 'text/plain');
-  res.setHeader('Transfer-Encoding', 'chunked');
+  // Set up headers for Server-Sent Events
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
 
   // Simulated AI Logic
   const phrases = [
@@ -77,11 +78,14 @@ app.post('/api/chat', async (req, res) => {
   const tokens = responseText.split(' ');
   
   for (const token of tokens) {
-    res.write(token + ' ');
+    const sseData = `data: ${JSON.stringify({content: token + ' '})}\n\n`;
+    res.write(sseData);
     // Simulate delay
     await new Promise(resolve => setTimeout(resolve, 50));
   }
 
+  // Send done signal
+  res.write('data: [DONE]\n\n');
   res.end();
 });
 

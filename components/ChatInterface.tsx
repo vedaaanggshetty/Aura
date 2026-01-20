@@ -162,7 +162,9 @@ const ChatSession: React.FC = () => {
 
       let accum = '';
       await chatService.sendMessageStream(chatMessages, (token) => {
+        console.log('Received token in UI:', token);
         accum += token;
+        console.log('Accumulated content:', accum);
         chatHistoryStore.updateLastAssistantMessage(conversationId, accum);
       });
     } catch (error) {
