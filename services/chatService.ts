@@ -24,14 +24,15 @@ export class ChatService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }))
+          message: messages[messages.length - 1].content,
+          history: messages.slice(0, -1).map(m => m.content)
         })
       });
 
       if (!response.ok) {
+        if (response.status === 422) {
+          throw new Error('Schema error: Request format mismatch');
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -39,19 +40,27 @@ export class ChatService {
       
       return {
         role: 'assistant',
-        content: data.content || data.message || 'I understand. How can I help you further?',
+        content: data.reply,
         timestamp: Date.now()
       };
 
     } catch (error) {
       console.error('Chat service error:', error);
       
-      // Graceful fallback for network errors or backend down
-      return {
-        role: 'assistant',
-        content: 'I\'m having trouble connecting right now, but I\'m here to listen. Could you tell me more about what\'s on your mind?',
-        timestamp: Date.now()
-      };
+      // Only use fallback for network failures or 5xx errors, not 422 schema errors
+      if (error instanceof Error && 
+          (error.message.includes('fetch') || 
+           error.message.includes('network') ||
+           error.message.includes('HTTP error! status: 5'))) {
+        return {
+          role: 'assistant',
+          content: 'I\'m having trouble connecting right now, but I\'m here to listen. Could you tell me more about what\'s on your mind?',
+          timestamp: Date.now()
+        };
+      }
+      
+      // Re-throw schema errors and other issues
+      throw error;
     }
   }
 

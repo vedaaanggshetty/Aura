@@ -142,10 +142,12 @@ const ChatSession: React.FC = () => {
           content: msg.content
         }));
 
-      let accum = '';
-      await chatService.sendMessageStream(chatMessages, (token) => {
-        accum += token;
-        chatHistoryStore.updateLastAssistantMessage(conversationId, accum);
+      const response = await chatService.sendMessage(chatMessages);
+      chatHistoryStore.addMessage(conversationId, {
+        id: assistantMsgId,
+        role: MessageRole.ASSISTANT,
+        content: response.content,
+        timestamp: Date.now()
       });
     } catch (error) {
       console.error('Failed to send message', error);
