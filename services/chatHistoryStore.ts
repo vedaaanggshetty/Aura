@@ -144,27 +144,25 @@ class ChatHistoryStoreImpl implements ChatHistoryStore {
     this.notifySubscribers();
   }
 
-  updateLastAssistantMessage(conversationId: string, content: string): void {
-    const conversations = this.getConversations();
-    const conversationIndex = conversations.findIndex(conv => conv.id === conversationId);
-    
-    if (conversationIndex === -1) {
-      console.error('Conversation not found:', conversationId);
-      return;
-    }
+ updateLastAssistantMessage(conversationId: string, content: string): void {
+  const conversations = this.getConversations();
+  const conversationIndex = conversations.findIndex(conv => conv.id === conversationId);
 
-    const conversation = conversations[conversationIndex];
-    const lastMessage = conversation.messages[conversation.messages.length - 1];
-    
-    if (lastMessage && lastMessage.role === MessageRole.ASSISTANT) {
-      lastMessage.content = content;
-      lastMessage.isStreaming = true;
-      conversation.lastUpdated = Date.now();
-    }
+  if (conversationIndex === -1) return;
 
-    this.saveToStorage(conversations);
-    this.notifySubscribers();
+  const conversation = conversations[conversationIndex];
+  const lastMessage = conversation.messages[conversation.messages.length - 1];
+
+  if (lastMessage && lastMessage.role === MessageRole.ASSISTANT) {
+    lastMessage.content = content;
+    // DO NOT toggle isStreaming here
+    conversation.lastUpdated = Date.now();
   }
+
+  this.saveToStorage(conversations);
+  this.notifySubscribers();
+}
+
 
   // Storage persistence
   private saveToStorage(conversations: Conversation[]): void {

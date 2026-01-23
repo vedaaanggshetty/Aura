@@ -1,11 +1,19 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Camera, AlertCircle, Play, Pause, Eye } from 'lucide-react';
 import { Button, GlassCard } from './ui/LayoutComponents';
+import { FaceMesh, Results } from '@mediapipe/face_mesh';
+import { Camera as MediaPipeCamera } from '@mediapipe/camera_utils';
+import { emotionInferenceService, EmotionState, FacialMetrics } from '../services/emotionInferenceService';
 
 export const VisionCapture: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const faceMeshRef = useRef<FaceMesh | null>(null);
+  const mpCameraRef = useRef<MediaPipeCamera | null>(null);
+  const lastNoseRef = useRef<{ x: number; y: number } | null>(null);
+  const debugFrameRef = useRef(0);
   const [isActive, setIsActive] = useState(false);
   const [logs, setLogs] = useState<string[]>(['System initialized.']);
+  const [emotionState, setEmotionState] = useState<EmotionState | null>(null);
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev.slice(-4), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -19,6 +27,51 @@ export const VisionCapture: React.FC = () => {
         setIsActive(true);
         addLog("Camera connected.");
         addLog("Analyzing facial micro-expressions...");
+
+        emotionInferenceService.setConfig({
+          thresholds: { low: 20, medium: 40, high: 60 },
+        });
+
+        if (!faceMeshRef.current) {
+          faceMeshRef.current = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+          });
+
+          faceMeshRef.current.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+          });
+
+          faceMeshRef.current.onResults((results: Results) => {
+            const lm = results.multiFaceLandmarks?.[0];
+            if (!lm) return;
+
+            const metrics = computeFacialMetrics(lm);
+            const nextEmotion = emotionInferenceService.infer(metrics);
+            setEmotionState(nextEmotion);
+
+            debugFrameRef.current += 1;
+            if (debugFrameRef.current % 15 === 0) {
+              console.table(metrics);
+              console.log('emotion', nextEmotion);
+            }
+          });
+        }
+
+        if (!mpCameraRef.current) {
+          mpCameraRef.current = new MediaPipeCamera(videoRef.current, {
+            onFrame: async () => {
+              if (!faceMeshRef.current || !videoRef.current) return;
+              await faceMeshRef.current.send({ image: videoRef.current });
+            },
+            width: 640,
+            height: 480,
+          });
+        }
+
+        await mpCameraRef.current.start();
       }
     } catch (err) {
       console.error("Camera error", err);
@@ -32,13 +85,80 @@ export const VisionCapture: React.FC = () => {
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
       setIsActive(false);
+      setEmotionState(null);
       addLog("Stream paused.");
     }
+
+    if (mpCameraRef.current) {
+      mpCameraRef.current.stop();
+      mpCameraRef.current = null;
+    }
+
+    if (faceMeshRef.current) {
+      faceMeshRef.current.close();
+      faceMeshRef.current = null;
+    }
+
+    lastNoseRef.current = null;
   };
 
   useEffect(() => {
     return () => stopCamera();
   }, []);
+
+  const getDominantEmotion = (e: EmotionState | null) => {
+    if (!e) return '---';
+    const entries = [
+      ['calm', e.calm],
+      ['anxious', e.anxious],
+      ['stressed', e.stressed],
+      ['neutral', e.neutral],
+    ] as const;
+    return entries.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+  };
+
+  const computeFacialMetrics = (lm: Array<{ x: number; y: number; z?: number }>): FacialMetrics => {
+    const dist = (a: number, b: number) => {
+      const dx = lm[a].x - lm[b].x;
+      const dy = lm[a].y - lm[b].y;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    // Mouth openness (upper inner lip 13, lower inner lip 14)
+    const mouth = dist(13, 14);
+
+    // Brow tension proxy: average of left and right brow-to-eye vertical separation
+    // left brow 105 to left eye upper 159, right brow 334 to right eye upper 386
+    const browLeft = Math.abs(lm[105].y - lm[159].y);
+    const browRight = Math.abs(lm[334].y - lm[386].y);
+    const brow = (browLeft + browRight) / 2;
+
+    // Eye fatigue proxy: inverse of eye openness using eye lids
+    // left eye: upper 159, lower 145; right eye: upper 386, lower 374
+    const eyeLeft = Math.abs(lm[159].y - lm[145].y);
+    const eyeRight = Math.abs(lm[386].y - lm[374].y);
+    const eyeOpen = (eyeLeft + eyeRight) / 2;
+
+    // Head movement: nose tip delta per frame (nose tip 1)
+    const nose = { x: lm[1].x, y: lm[1].y };
+    const prev = lastNoseRef.current;
+    lastNoseRef.current = nose;
+    const headMove = prev ? Math.sqrt((nose.x - prev.x) ** 2 + (nose.y - prev.y) ** 2) : 0;
+
+    const to0_100 = (v: number, min: number, max: number) => {
+      const t = (v - min) / (max - min);
+      return Math.max(0, Math.min(100, t * 100));
+    };
+
+    return {
+      // smaller eyeOpen => higher fatigue
+      eyeFatigue: 100 - to0_100(eyeOpen, 0.004, 0.02),
+      // smaller brow separation => higher tension
+      browTension: 100 - to0_100(brow, 0.01, 0.05),
+      mouthOpenness: to0_100(mouth, 0.002, 0.04),
+      headMovement: to0_100(headMove, 0.0, 0.02),
+    };
+  };
 
   return (
     <div className="pt-32 pb-12 px-4 max-w-5xl mx-auto bg-background transition-colors duration-500 min-h-screen">
@@ -104,22 +224,54 @@ export const VisionCapture: React.FC = () => {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-textSec">Primary State</span>
-                    <span className="text-textMain font-medium">{isActive ? 'Focus' : '---'}</span>
-                  </div>
-                  <div className="w-full bg-borderDim h-1.5 rounded-full overflow-hidden">
-                     <div className="bg-primary h-full rounded-full w-[0%] transition-all duration-1000" style={{ width: isActive ? '75%' : '0%' }}></div>
+                    <span className="text-textSec">Dominant Emotion</span>
+                    <span className="text-textMain font-medium">{emotionState ? getDominantEmotion(emotionState) : '---'}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-textSec">Fatigue Level</span>
-                    <span className="text-textMain font-medium">{isActive ? 'Low' : '---'}</span>
+                    <span className="text-textSec">Calm</span>
+                    <span className="text-textMain font-medium">{emotionState ? `${Math.round(emotionState.calm)}%` : '---'}</span>
                   </div>
                   <div className="w-full bg-borderDim h-1.5 rounded-full overflow-hidden">
-                     <div className="bg-warmth h-full rounded-full w-[0%] transition-all duration-1000" style={{ width: isActive ? '15%' : '0%' }}></div>
+                     <div className="bg-cool h-full rounded-full w-[0%] transition-all duration-300" style={{ width: emotionState ? `${emotionState.calm}%` : '0%' }}></div>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-textSec">Anxious</span>
+                    <span className="text-textMain font-medium">{emotionState ? `${Math.round(emotionState.anxious)}%` : '---'}</span>
+                  </div>
+                  <div className="w-full bg-borderDim h-1.5 rounded-full overflow-hidden">
+                     <div className="bg-warmth h-full rounded-full w-[0%] transition-all duration-300" style={{ width: emotionState ? `${emotionState.anxious}%` : '0%' }}></div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-textSec">Stressed</span>
+                    <span className="text-textMain font-medium">{emotionState ? `${Math.round(emotionState.stressed)}%` : '---'}</span>
+                  </div>
+                  <div className="w-full bg-borderDim h-1.5 rounded-full overflow-hidden">
+                     <div className="bg-primary h-full rounded-full w-[0%] transition-all duration-300" style={{ width: emotionState ? `${emotionState.stressed}%` : '0%' }}></div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-textSec">Neutral</span>
+                    <span className="text-textMain font-medium">{emotionState ? `${Math.round(emotionState.neutral)}%` : '---'}</span>
+                  </div>
+                  <div className="w-full bg-borderDim h-1.5 rounded-full overflow-hidden">
+                     <div className="bg-borderDim h-full rounded-full w-[0%] transition-all duration-300" style={{ width: emotionState ? `${emotionState.neutral}%` : '0%' }}></div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm text-textSec">Explanation</div>
+                  <div className="text-xs text-textMain leading-relaxed">{emotionState ? emotionState.explanation : '---'}</div>
                 </div>
               </div>
             </div>
