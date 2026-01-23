@@ -3,10 +3,7 @@ import { BehavioralPattern } from './types';
 // Clerk Configuration
 export const clerkPubKey = (import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_YOUR_CLERK_PUBLISHABLE_KEY_HERE';
 
-// Configuration for local NGROK or Backend
-// If you are running the `server/index.js`, use http://localhost:3001
-export const API_BASE_URL = 'http://localhost:3001'; 
-export const LLM_API_ENDPOINT = `${API_BASE_URL}/api/chat`; 
+// Configuration removed - Aura now uses single ngrok backend via ChatService 
 
 export const EMOTION_CATEGORIES = [
   'Stress', 'Anxiety', 'Depression', 'Insomnia', 
