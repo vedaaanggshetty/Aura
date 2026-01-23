@@ -60,7 +60,7 @@ const ChatSession: React.FC = () => {
     const active = chatHistoryStore.getActiveConversation();
     if (!active) {
       const welcomeMessage: Message = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-welcome`,
         role: MessageRole.ASSISTANT,
         content: `Hello, ${user.firstName || 'friend'}. I'm listening.`,
         timestamp: Date.now()
@@ -112,8 +112,9 @@ const ChatSession: React.FC = () => {
     const conversationId = activeConversationId ?? chatHistoryStore.getActiveConversation()?.id;
     if (!conversationId) return;
 
+    const userMsgId = `${Date.now()}-user`;
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: userMsgId,
       role: MessageRole.USER,
       content: text,
       timestamp: Date.now()
@@ -124,7 +125,7 @@ const ChatSession: React.FC = () => {
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsTyping(true);
 
-    const assistantMsgId = (Date.now() + 1).toString();
+    const assistantMsgId = `${Date.now()}-assistant`;
     chatHistoryStore.addMessage(conversationId, {
       id: assistantMsgId,
       role: MessageRole.ASSISTANT,

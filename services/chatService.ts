@@ -75,10 +75,8 @@ export class ChatService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }))
+          message: messages[messages.length - 1].content,
+          history: messages.slice(0, -1).map(m => m.content)
         })
       });
 
