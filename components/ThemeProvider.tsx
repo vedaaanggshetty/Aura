@@ -10,12 +10,12 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize with dark mode as default
-  const [theme, setTheme] = useState<Theme>('dark');
+  // Initialize with light mode as default
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     // Check local storage or system preference on mount if persistence is desired later
-    // For now, strict 'dark' default as requested, but allow toggle.
+    // For now, strict 'light' default as requested, but allow toggle.
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);

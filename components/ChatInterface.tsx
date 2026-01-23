@@ -59,18 +59,12 @@ const ChatSession: React.FC = () => {
 
     const active = chatHistoryStore.getActiveConversation();
     if (!active) {
-      const welcomeMessage: Message = {
-        id: `${Date.now()}-welcome`,
-        role: MessageRole.ASSISTANT,
-        content: `Hello, ${user.firstName || 'friend'}. I'm listening.`,
-        timestamp: Date.now()
-      };
+  const newId = chatHistoryStore.createConversation(); // EMPTY conversation
+  setActiveConversationId(newId);
+  setMessages([]);
+  return;
+}
 
-      const newId = chatHistoryStore.createConversation(welcomeMessage);
-      setActiveConversationId(newId);
-      setMessages(chatHistoryStore.getConversationById(newId)?.messages ?? []);
-      return;
-    }
 
     setActiveConversationId(active.id);
     setMessages(active.messages);
@@ -136,20 +130,25 @@ const ChatSession: React.FC = () => {
 
     try {
       const conv = chatHistoryStore.getConversationById(conversationId);
-      const chatMessages: ChatMessage[] = (conv?.messages ?? [])
-        .filter((m) => m.id !== assistantMsgId)
-        .map((msg) => ({
-          role: msg.role === MessageRole.USER ? 'user' : 'assistant',
-          content: msg.content
-        }));
+    const chatMessages: ChatMessage[] = (conv?.messages ?? [])
+  .filter(
+    (m) =>
+      m.role === MessageRole.USER &&
+      m.content.trim().length > 0
+  )
+  .map((msg) => ({
+    role: 'user',
+    content: msg.content
+  }));
+
+
 
       const response = await chatService.sendMessage(chatMessages);
-      chatHistoryStore.addMessage(conversationId, {
-        id: assistantMsgId,
-        role: MessageRole.ASSISTANT,
-        content: response.content,
-        timestamp: Date.now()
-      });
+  chatHistoryStore.updateLastAssistantMessage(
+  conversationId,
+  response.content
+);
+
     } catch (error) {
       console.error('Failed to send message', error);
     } finally {
