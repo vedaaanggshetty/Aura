@@ -7,6 +7,7 @@ import { SUGGESTIONS } from '../constants';
 import { SignedIn, SignedOut, SignInButton, useUser } from './AuthContext';
 import ConversationSidebar from './ConversationSidebar';
 import { chatHistoryStore } from '../services/chatHistoryStore';
+import { analysisEngine } from '../services/analysisEngine';
 
 const formatDate = (timestamp: number) => {
   return new Intl.DateTimeFormat('en-US', {
@@ -18,6 +19,60 @@ const formatDate = (timestamp: number) => {
 
 const shouldShowTimestamp = (current: number, prev: number) => {
   return current - prev > 30 * 60 * 1000;
+};
+
+type YoutubeSuggestion = {
+  title: string;
+  videoId: string;
+  reason: string;
+};
+
+const pickYoutubeSuggestion = (messages: Message[]): YoutubeSuggestion | null => {
+  if (messages.length < 2) return null;
+  const analysis = analysisEngine.analyze([], messages);
+
+  const stress = analysis.metrics.stress;
+  const anxiety = analysis.metrics.anxiety;
+  const insomnia = analysis.metrics.insomnia;
+  const mood = analysis.metrics.mood;
+
+  if (insomnia >= 60) {
+    return {
+      title: '10-Minute Wind Down (Breathing + Relaxation)',
+      videoId: 'nmFUDkj1Aq0',
+      reason: 'Suggested because your recent chat patterns indicate late-night strain / sleep disruption signals.',
+    };
+  }
+
+  if (stress >= 65) {
+    return {
+      title: 'Guided Box Breathing (4-4-4-4)',
+      videoId: 'tEmt1Znux58',
+      reason: 'Suggested because your recent chat patterns show elevated stress markers (urgency / pressure language).',
+    };
+  }
+
+  if (anxiety >= 60) {
+    return {
+      title: 'Grounding Exercise (5-4-3-2-1)',
+      videoId: '30VMIEmA114',
+      reason: 'Suggested because your recent chat patterns show elevated anxiety markers (uncertainty / future-focus).',
+    };
+  }
+
+  if (mood <= 40) {
+    return {
+      title: 'Gentle Mood Reset (Short Guided Practice)',
+      videoId: 'inpok4MKVLM',
+      reason: 'Suggested because your recent chat patterns indicate lower mood signals (negative emotion words / low positivity).',
+    };
+  }
+
+  return {
+    title: 'Mindful Minute: Centering Breath',
+    videoId: 'SEfs5TJZ6Nk',
+    reason: 'Suggested as a neutral reinforcement to support clarity and emotional stability.',
+  };
 };
 
 const AuthGate = () => (
@@ -59,12 +114,11 @@ const ChatSession: React.FC = () => {
 
     const active = chatHistoryStore.getActiveConversation();
     if (!active) {
-  const newId = chatHistoryStore.createConversation(); // EMPTY conversation
-  setActiveConversationId(newId);
-  setMessages([]);
-  return;
-}
-
+      const newId = chatHistoryStore.createConversation(); // EMPTY conversation
+      setActiveConversationId(newId);
+      setMessages([]);
+      return;
+    }
 
     setActiveConversationId(active.id);
     setMessages(active.messages);
@@ -130,25 +184,22 @@ const ChatSession: React.FC = () => {
 
     try {
       const conv = chatHistoryStore.getConversationById(conversationId);
-    const chatMessages: ChatMessage[] = (conv?.messages ?? [])
-  .filter(
-    (m) =>
-      m.role === MessageRole.USER &&
-      m.content.trim().length > 0
-  )
-  .map((msg) => ({
-    role: 'user',
-    content: msg.content
-  }));
-
-
+      const chatMessages: ChatMessage[] = (conv?.messages ?? [])
+        .filter(
+          (m) =>
+            m.role === MessageRole.USER &&
+            m.content.trim().length > 0
+        )
+        .map((msg) => ({
+          role: 'user',
+          content: msg.content
+        }));
 
       const response = await chatService.sendMessage(chatMessages);
-  chatHistoryStore.updateLastAssistantMessage(
-  conversationId,
-  response.content
-);
-
+      chatHistoryStore.updateLastAssistantMessage(
+        conversationId,
+        response.content
+      );
     } catch (error) {
       console.error('Failed to send message', error);
     } finally {
@@ -172,6 +223,41 @@ const ChatSession: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 scrollbar-hide z-10 min-w-0">
           <div className="max-w-3xl mx-auto">
+            {(() => {
+              const last = messages[messages.length - 1];
+              const canSuggest = !!last && last.role === MessageRole.ASSISTANT && !last.isStreaming && !isTyping;
+              const suggestion = canSuggest ? pickYoutubeSuggestion(messages) : null;
+              if (!suggestion) return null;
+
+              const url = `https://www.youtube.com/watch?v=${suggestion.videoId}`;
+              const thumbnail = `https://i.ytimg.com/vi/${suggestion.videoId}/hqdefault.jpg`;
+
+              return (
+                <div className="mb-6 mt-2">
+                  <div className="text-[9px] uppercase tracking-wider text-textMuted/50 mb-2">Suggested for you</div>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-2xl overflow-hidden border border-borderDim/40 bg-surface/50 hover:bg-surface/70 transition-colors"
+                  >
+                    <div className="flex gap-4 p-3">
+                      <img
+                        src={thumbnail}
+                        alt={suggestion.title}
+                        className="w-28 h-16 object-cover rounded-xl flex-shrink-0"
+                        loading="lazy"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-textMain truncate">{suggestion.title}</div>
+                        <div className="text-xs text-textSec mt-1 line-clamp-2">{suggestion.reason}</div>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              );
+            })()}
+
             {messages.map((msg, idx) => {
               const prevMsg = messages[idx - 1];
               const showTime = !prevMsg || shouldShowTimestamp(msg.timestamp, prevMsg.timestamp);

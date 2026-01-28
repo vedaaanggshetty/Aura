@@ -9,11 +9,13 @@ import { useUser } from './AuthContext';
 import { journalStore } from '../services/journalStore';
 import { analysisEngine, AnalysisResult } from '../services/analysisEngine';
 import { chatHistoryStore } from '../services/chatHistoryStore';
+import { visionEmotionStore, VisionFusionSnapshot } from '../services/visionEmotionStore';
 
 export const EmotionDashboard: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useUser();
   const [analytics, setAnalytics] = useState<AnalysisResult | null>(null);
+  const [visionSnapshot, setVisionSnapshot] = useState<VisionFusionSnapshot>(() => visionEmotionStore.getSnapshot());
 
   // Load real data when user is available
   useEffect(() => {
@@ -45,7 +47,12 @@ export const EmotionDashboard: React.FC = () => {
       return unsubscribe;
     }
   }, [user?.id]);
-  
+
+  useEffect(() => {
+    const unsubscribe = visionEmotionStore.subscribe((s) => setVisionSnapshot(s));
+    return unsubscribe;
+  }, []);
+
   // Refined Chart Colors
   const chartColors = theme === 'dark' ? {
     grid: '#222',
@@ -86,6 +93,25 @@ export const EmotionDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      <GlassCard className="p-6">
+        <h3 className="text-lg font-medium text-textMain mb-4">Live Vision Insight</h3>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-textSec">Dominant</span>
+            <span className="text-textMain font-medium">{visionSnapshot.fused ? visionSnapshot.fused.dominant : '---'}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-textSec">Confidence</span>
+            <span className="text-textMain font-medium">{visionSnapshot.fused ? `${visionSnapshot.fused.confidence}%` : '---'}</span>
+          </div>
+          {visionSnapshot.fused?.disagreement && (
+            <div className="text-xs text-warmth">CNN and rules disagree</div>
+          )}
+          <div className="text-xs text-textMain leading-relaxed">{visionSnapshot.fused ? visionSnapshot.fused.ruleExplanation : '---'}</div>
+          <div className="text-xs text-textMain leading-relaxed">{visionSnapshot.fused ? visionSnapshot.fused.cnnSummary : '---'}</div>
+        </div>
+      </GlassCard>
 
       {!analytics ? (
         <GlassCard className="h-[400px] flex items-center justify-center">

@@ -4,6 +4,8 @@ import { Button, GlassCard } from './ui/LayoutComponents';
 import { FaceMesh, Results } from '@mediapipe/face_mesh';
 import { Camera as MediaPipeCamera } from '@mediapipe/camera_utils';
 import { emotionInferenceService, EmotionState, FacialMetrics } from '../services/emotionInferenceService';
+import { cnnEmotionService, AuraEmotionFromCnn, CnnEmotionResult } from '../services/cnnEmotionService';
+import { visionEmotionStore } from '../services/visionEmotionStore';
 
 export const VisionCapture: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -11,12 +13,216 @@ export const VisionCapture: React.FC = () => {
   const mpCameraRef = useRef<MediaPipeCamera | null>(null);
   const lastNoseRef = useRef<{ x: number; y: number } | null>(null);
   const debugFrameRef = useRef(0);
+  const lastCnnAtRef = useRef<number>(0);
+  const baselineStartAtRef = useRef<number | null>(null);
+  const baselineCountRef = useRef<number>(0);
+  const baselineCnnSumRef = useRef<AuraEmotionFromCnn>({ calm: 0, anxious: 0, stressed: 0, neutral: 0 });
+  const baselineMetricsSumRef = useRef<FacialMetrics>({ eyeFatigue: 0, browTension: 0, mouthOpenness: 0, headMovement: 0 });
+  const baselineCnnMeanRef = useRef<AuraEmotionFromCnn | null>(null);
+  const baselineMetricsMeanRef = useRef<FacialMetrics | null>(null);
+  const lastCnnResultRef = useRef<CnnEmotionResult | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [logs, setLogs] = useState<string[]>(['System initialized.']);
   const [emotionState, setEmotionState] = useState<EmotionState | null>(null);
+  const [fusionState, setFusionState] = useState<{
+    final: AuraEmotionFromCnn;
+    dominant: keyof AuraEmotionFromCnn;
+    confidence: number;
+    disagreement: boolean;
+    ruleExplanation: string;
+    cnnSummary: string;
+  } | null>(null);
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev.slice(-4), `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  const getDominantAura = (e: AuraEmotionFromCnn) => {
+    const entries = [
+      ['calm', e.calm],
+      ['anxious', e.anxious],
+      ['stressed', e.stressed],
+      ['neutral', e.neutral],
+    ] as const;
+    return entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+  };
+
+  const clamp100 = (n: number) => Math.max(0, Math.min(100, n));
+
+  const normalizeAura = (e: AuraEmotionFromCnn): AuraEmotionFromCnn => {
+    const sum = e.calm + e.anxious + e.stressed + e.neutral;
+    if (sum <= 0) return { calm: 25, anxious: 25, stressed: 25, neutral: 25 };
+    return {
+      calm: (e.calm / sum) * 100,
+      anxious: (e.anxious / sum) * 100,
+      stressed: (e.stressed / sum) * 100,
+      neutral: (e.neutral / sum) * 100,
+    };
+  };
+
+  const applyCnnBaseline = (curr: AuraEmotionFromCnn): AuraEmotionFromCnn => {
+    const base = baselineCnnMeanRef.current;
+    if (!base) return curr;
+    const eps = 1e-6;
+    return normalizeAura({
+      calm: (curr.calm + eps) / (base.calm + eps),
+      anxious: (curr.anxious + eps) / (base.anxious + eps),
+      stressed: (curr.stressed + eps) / (base.stressed + eps),
+      neutral: (curr.neutral + eps) / (base.neutral + eps),
+    });
+  };
+
+  const applyMetricsBaseline = (curr: FacialMetrics): FacialMetrics => {
+    const base = baselineMetricsMeanRef.current;
+    if (!base) return curr;
+    return {
+      eyeFatigue: clamp100(curr.eyeFatigue - base.eyeFatigue + 50),
+      browTension: clamp100(curr.browTension - base.browTension + 50),
+      mouthOpenness: clamp100(curr.mouthOpenness - base.mouthOpenness + 50),
+      headMovement: clamp100(curr.headMovement - base.headMovement + 50),
+    };
+  };
+
+  const maybeAccumulateBaseline = (cnnAura: AuraEmotionFromCnn, metricsRaw: FacialMetrics) => {
+    const start = baselineStartAtRef.current;
+    if (!start) return;
+
+    const elapsed = Date.now() - start;
+    if (elapsed > 10_000) {
+      if (!baselineCnnMeanRef.current && baselineCountRef.current > 0) {
+        const c = baselineCountRef.current;
+        baselineCnnMeanRef.current = {
+          calm: baselineCnnSumRef.current.calm / c,
+          anxious: baselineCnnSumRef.current.anxious / c,
+          stressed: baselineCnnSumRef.current.stressed / c,
+          neutral: baselineCnnSumRef.current.neutral / c,
+        };
+        baselineMetricsMeanRef.current = {
+          eyeFatigue: baselineMetricsSumRef.current.eyeFatigue / c,
+          browTension: baselineMetricsSumRef.current.browTension / c,
+          mouthOpenness: baselineMetricsSumRef.current.mouthOpenness / c,
+          headMovement: baselineMetricsSumRef.current.headMovement / c,
+        };
+      }
+      return;
+    }
+
+    baselineCountRef.current += 1;
+    baselineCnnSumRef.current = {
+      calm: baselineCnnSumRef.current.calm + cnnAura.calm,
+      anxious: baselineCnnSumRef.current.anxious + cnnAura.anxious,
+      stressed: baselineCnnSumRef.current.stressed + cnnAura.stressed,
+      neutral: baselineCnnSumRef.current.neutral + cnnAura.neutral,
+    };
+    baselineMetricsSumRef.current = {
+      eyeFatigue: baselineMetricsSumRef.current.eyeFatigue + metricsRaw.eyeFatigue,
+      browTension: baselineMetricsSumRef.current.browTension + metricsRaw.browTension,
+      mouthOpenness: baselineMetricsSumRef.current.mouthOpenness + metricsRaw.mouthOpenness,
+      headMovement: baselineMetricsSumRef.current.headMovement + metricsRaw.headMovement,
+    };
+  };
+
+  const fuse = (rule: EmotionState, cnn: AuraEmotionFromCnn) => {
+    const ruleAura: AuraEmotionFromCnn = {
+      calm: rule.calm,
+      anxious: rule.anxious,
+      stressed: rule.stressed,
+      neutral: rule.neutral,
+    };
+
+    const fused = normalizeAura({
+      calm: 0.65 * cnn.calm + 0.35 * ruleAura.calm,
+      anxious: 0.65 * cnn.anxious + 0.35 * ruleAura.anxious,
+      stressed: 0.65 * cnn.stressed + 0.35 * ruleAura.stressed,
+      neutral: 0.65 * cnn.neutral + 0.35 * ruleAura.neutral,
+    });
+
+    const dominant = getDominantAura(fused);
+    const confidence = Math.round(dominant[1]);
+    const cnnTop = getDominantAura(cnn)[0];
+    const ruleTop = getDominantAura(ruleAura)[0];
+
+    const nextFusion = {
+      final: fused,
+      dominant: dominant[0],
+      confidence,
+      disagreement: cnnTop !== ruleTop,
+      ruleExplanation: rule.explanation,
+      cnnSummary: lastCnnResultRef.current?.summary ?? 'CNN: (no recent result)',
+    };
+
+    setFusionState(nextFusion);
+    visionEmotionStore.setSnapshot({
+      timestamp: Date.now(),
+      rule,
+      fused: nextFusion,
+    });
+  };
+
+  const fuseRuleOnly = (rule: EmotionState, cnnSummary: string) => {
+    const ruleAura: AuraEmotionFromCnn = {
+      calm: rule.calm,
+      anxious: rule.anxious,
+      stressed: rule.stressed,
+      neutral: rule.neutral,
+    };
+
+    const fused = normalizeAura(ruleAura);
+    const dominant = getDominantAura(fused);
+    const confidence = Math.round(dominant[1]);
+
+    const nextFusion = {
+      final: fused,
+      dominant: dominant[0],
+      confidence,
+      disagreement: false,
+      ruleExplanation: rule.explanation,
+      cnnSummary,
+    };
+
+    setFusionState(nextFusion);
+    visionEmotionStore.setSnapshot({
+      timestamp: Date.now(),
+      rule,
+      fused: nextFusion,
+    });
+  };
+
+  const maybeRunCnnAndFuse = async (ruleEmotion: EmotionState, metricsRaw: FacialMetrics) => {
+    try {
+      const v = videoRef.current;
+      if (!v) return;
+
+      const now = Date.now();
+      if (now - lastCnnAtRef.current < 200) {
+        const last = lastCnnResultRef.current;
+        if (last) {
+          const cnnAdj = applyCnnBaseline(last.aura);
+          fuse(ruleEmotion, cnnAdj);
+        } else {
+          fuseRuleOnly(ruleEmotion, 'CNN: loading…');
+        }
+        return;
+      }
+      lastCnnAtRef.current = now;
+
+      const res = await cnnEmotionService.detect(v);
+      if (!res) {
+        fuseRuleOnly(ruleEmotion, 'CNN: unavailable (model not loaded or no face detected).');
+        return;
+      }
+
+      lastCnnResultRef.current = res;
+      maybeAccumulateBaseline(res.aura, metricsRaw);
+      const cnnAdj = applyCnnBaseline(res.aura);
+      fuse(ruleEmotion, cnnAdj);
+
+      if (debugFrameRef.current % 30 === 0) {
+        console.log('cnn', res.summary);
+      }
+    } catch {
+      fuseRuleOnly(ruleEmotion, 'CNN: error (see console).');
+    }
   };
 
   const startCamera = async () => {
@@ -24,9 +230,32 @@ export const VisionCapture: React.FC = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+
+        await new Promise<void>((resolve) => {
+          const v = videoRef.current;
+          if (!v) return resolve();
+          if (v.readyState >= 2) return resolve();
+          v.onloadedmetadata = () => resolve();
+        });
+
+        try {
+          await videoRef.current.play();
+        } catch {
+          // ignore autoplay restrictions; MediaPipeCamera may still work
+        }
+
         setIsActive(true);
         addLog("Camera connected.");
         addLog("Analyzing facial micro-expressions...");
+
+        baselineStartAtRef.current = Date.now();
+        baselineCountRef.current = 0;
+        baselineCnnSumRef.current = { calm: 0, anxious: 0, stressed: 0, neutral: 0 };
+        baselineMetricsSumRef.current = { eyeFatigue: 0, browTension: 0, mouthOpenness: 0, headMovement: 0 };
+        baselineCnnMeanRef.current = null;
+        baselineMetricsMeanRef.current = null;
+        lastCnnResultRef.current = null;
+        lastCnnAtRef.current = 0;
 
         emotionInferenceService.setConfig({
           thresholds: { low: 20, medium: 40, high: 60 },
@@ -48,12 +277,15 @@ export const VisionCapture: React.FC = () => {
             const lm = results.multiFaceLandmarks?.[0];
             if (!lm) return;
 
-            const metrics = computeFacialMetrics(lm);
+            const metricsRaw = computeFacialMetrics(lm);
+            const metrics = applyMetricsBaseline(metricsRaw);
             const nextEmotion = emotionInferenceService.infer(metrics);
             setEmotionState(nextEmotion);
 
+            void maybeRunCnnAndFuse(nextEmotion, metricsRaw);
+
             debugFrameRef.current += 1;
-            if (debugFrameRef.current % 15 === 0) {
+            if (debugFrameRef.current % 30 === 0) {
               console.table(metrics);
               console.log('emotion', nextEmotion);
             }
@@ -64,7 +296,13 @@ export const VisionCapture: React.FC = () => {
           mpCameraRef.current = new MediaPipeCamera(videoRef.current, {
             onFrame: async () => {
               if (!faceMeshRef.current || !videoRef.current) return;
-              await faceMeshRef.current.send({ image: videoRef.current });
+              try {
+                await faceMeshRef.current.send({ image: videoRef.current });
+              } catch (e) {
+                if (debugFrameRef.current % 30 === 0) {
+                  console.log('mediapipe send error', e);
+                }
+              }
             },
             width: 640,
             height: 480,
@@ -80,15 +318,6 @@ export const VisionCapture: React.FC = () => {
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-      setIsActive(false);
-      setEmotionState(null);
-      addLog("Stream paused.");
-    }
-
     if (mpCameraRef.current) {
       mpCameraRef.current.stop();
       mpCameraRef.current = null;
@@ -99,7 +328,29 @@ export const VisionCapture: React.FC = () => {
       faceMeshRef.current = null;
     }
 
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+      setIsActive(false);
+      setEmotionState(null);
+      setFusionState(null);
+      addLog("Stream paused.");
+    }
+
+    visionEmotionStore.setSnapshot({
+      timestamp: Date.now(),
+      rule: null,
+      fused: null,
+    });
+
     lastNoseRef.current = null;
+    baselineStartAtRef.current = null;
+    baselineCountRef.current = 0;
+    baselineCnnMeanRef.current = null;
+    baselineMetricsMeanRef.current = null;
+    lastCnnResultRef.current = null;
+    lastCnnAtRef.current = 0;
   };
 
   useEffect(() => {
@@ -272,6 +523,23 @@ export const VisionCapture: React.FC = () => {
                 <div className="space-y-2">
                   <div className="text-sm text-textSec">Explanation</div>
                   <div className="text-xs text-textMain leading-relaxed">{emotionState ? emotionState.explanation : '---'}</div>
+                </div>
+
+                <div className="pt-4 border-t border-borderDim space-y-2">
+                  <div className="text-sm text-textSec">Emotion Fusion</div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-textSec">Dominant</span>
+                    <span className="text-textMain font-medium">{fusionState ? fusionState.dominant : '---'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-textSec">Confidence</span>
+                    <span className="text-textMain font-medium">{fusionState ? `${fusionState.confidence}%` : '---'}</span>
+                  </div>
+                  {fusionState?.disagreement && (
+                    <div className="text-xs text-warmth">CNN and rules disagree</div>
+                  )}
+                  <div className="text-xs text-textMain leading-relaxed">{fusionState ? fusionState.ruleExplanation : '---'}</div>
+                  <div className="text-xs text-textMain leading-relaxed">{fusionState ? fusionState.cnnSummary : '---'}</div>
                 </div>
               </div>
             </div>
