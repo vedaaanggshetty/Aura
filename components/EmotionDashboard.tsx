@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar 
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 import { GlassCard } from './ui/LayoutComponents';
 import { useTheme } from './ThemeProvider';
@@ -9,13 +9,13 @@ import { useUser } from './AuthContext';
 import { journalStore } from '../services/journalStore';
 import { analysisEngine, AnalysisResult } from '../services/analysisEngine';
 import { chatHistoryStore } from '../services/chatHistoryStore';
-import { visionEmotionStore, VisionFusionSnapshot } from '../services/visionEmotionStore';
+
 
 export const EmotionDashboard: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useUser();
   const [analytics, setAnalytics] = useState<AnalysisResult | null>(null);
-  const [visionSnapshot, setVisionSnapshot] = useState<VisionFusionSnapshot>(() => visionEmotionStore.getSnapshot());
+
 
   // Load real data when user is available
   useEffect(() => {
@@ -26,11 +26,11 @@ export const EmotionDashboard: React.FC = () => {
           const journalEntries = journalStore.getRecentEntries(user.id, 50);
           const conversations = chatHistoryStore.getConversations();
           const allMessages = conversations.flatMap(conv => conv.messages);
-          
+
           // Analyze using the new analysis engine
           const analysisResult = analysisEngine.analyze(journalEntries, allMessages);
           setAnalytics(analysisResult);
-          
+
         } catch (error) {
           console.error("Failed to load analytics", error);
           // Use default result on error
@@ -40,18 +40,15 @@ export const EmotionDashboard: React.FC = () => {
 
       // Initial load
       loadData();
-      
+
       // Subscribe to chat history changes for real-time updates
       const unsubscribe = chatHistoryStore.subscribe(loadData);
-      
+
       return unsubscribe;
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    const unsubscribe = visionEmotionStore.subscribe((s) => setVisionSnapshot(s));
-    return unsubscribe;
-  }, []);
+
 
   // Refined Chart Colors
   const chartColors = theme === 'dark' ? {
@@ -78,7 +75,7 @@ export const EmotionDashboard: React.FC = () => {
 
   return (
     <div className="pt-28 pb-12 px-4 max-w-7xl mx-auto space-y-8 bg-background transition-colors duration-500">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
         <div>
@@ -94,24 +91,7 @@ export const EmotionDashboard: React.FC = () => {
         </div>
       </div>
 
-      <GlassCard className="p-6">
-        <h3 className="text-lg font-medium text-textMain mb-4">Live Vision Insight</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-textSec">Dominant</span>
-            <span className="text-textMain font-medium">{visionSnapshot.fused ? visionSnapshot.fused.dominant : '---'}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-textSec">Confidence</span>
-            <span className="text-textMain font-medium">{visionSnapshot.fused ? `${visionSnapshot.fused.confidence}%` : '---'}</span>
-          </div>
-          {visionSnapshot.fused?.disagreement && (
-            <div className="text-xs text-warmth">CNN and rules disagree</div>
-          )}
-          <div className="text-xs text-textMain leading-relaxed">{visionSnapshot.fused ? visionSnapshot.fused.ruleExplanation : '---'}</div>
-          <div className="text-xs text-textMain leading-relaxed">{visionSnapshot.fused ? visionSnapshot.fused.cnnSummary : '---'}</div>
-        </div>
-      </GlassCard>
+
 
       {!analytics ? (
         <GlassCard className="h-[400px] flex items-center justify-center">
@@ -122,28 +102,28 @@ export const EmotionDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Mood Trend Chart */}
             <GlassCard className="h-[450px]">
-              <h3 className="text-lg font-medium text-textMain mb-8">Mood & Stress Correlation</h3>
+              <h3 className="text-lg font-medium text-textMain mb-8">Mood &amp; Stress Correlation</h3>
               <ResponsiveContainer width="100%" height="85%">
                 <LineChart data={analytics.weeklyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
-                  <XAxis 
-                    dataKey="day" 
-                    stroke={chartColors.text} 
-                    tick={{ fill: chartColors.text, fontSize: 12 }} 
+                  <XAxis
+                    dataKey="day"
+                    stroke={chartColors.text}
+                    tick={{ fill: chartColors.text, fontSize: 12 }}
                     tickLine={false}
                     axisLine={false}
                     dy={10}
                   />
-                  <YAxis 
-                    stroke={chartColors.text} 
-                    tick={{ fill: chartColors.text, fontSize: 12 }} 
+                  <YAxis
+                    stroke={chartColors.text}
+                    tick={{ fill: chartColors.text, fontSize: 12 }}
                     tickLine={false}
                     axisLine={false}
                     dx={-10}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: chartColors.tooltipBg, 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: chartColors.tooltipBg,
                       borderColor: chartColors.tooltipBorder,
                       borderRadius: '16px',
                       boxShadow: '0 10px 40px -10px rgba(0,0,0,0.1)',
@@ -151,18 +131,18 @@ export const EmotionDashboard: React.FC = () => {
                     }}
                     itemStyle={{ color: chartColors.tooltipText, fontSize: '13px' }}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="mood" 
-                    stroke={chartColors.moodLine} 
+                  <Line
+                    type="monotone"
+                    dataKey="mood"
+                    stroke={chartColors.moodLine}
                     strokeWidth={3}
                     dot={false}
-                    activeDot={{ r: 6, strokeWidth: 0 }} 
+                    activeDot={{ r: 6, strokeWidth: 0 }}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="stress" 
-                    stroke={chartColors.stressLine} 
+                  <Line
+                    type="monotone"
+                    dataKey="stress"
+                    stroke={chartColors.stressLine}
                     strokeWidth={3}
                     strokeDasharray="4 4"
                     dot={false}
@@ -186,10 +166,9 @@ export const EmotionDashboard: React.FC = () => {
                         <span className="text-xs text-textMuted uppercase tracking-wider">{pattern.trend}</span>
                       </div>
                       <div className="w-full h-1.5 bg-borderDim rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${
-                            pattern.score > 70 ? 'bg-warmth' : pattern.score > 40 ? 'bg-primary/60' : 'bg-primary'
-                          }`}
+                        <div
+                          className={`h-full rounded-full ${pattern.score > 70 ? 'bg-warmth' : pattern.score > 40 ? 'bg-primary/60' : 'bg-primary'
+                            }`}
                           style={{ width: `${pattern.score}%` }}
                         />
                       </div>
@@ -216,9 +195,9 @@ export const EmotionDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={analytics.balanceMetrics}>
                   <PolarGrid gridType="polygon" stroke={chartColors.radarGrid} />
-                  <PolarAngleAxis 
-                    dataKey="subject" 
-                    tick={{ fill: chartColors.text, fontSize: 14, fontWeight: 500 }} 
+                  <PolarAngleAxis
+                    dataKey="subject"
+                    tick={{ fill: chartColors.text, fontSize: 14, fontWeight: 500 }}
                   />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                   <Radar
@@ -229,9 +208,9 @@ export const EmotionDashboard: React.FC = () => {
                     fill={chartColors.radarFill}
                     fillOpacity={0.3}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: chartColors.tooltipBg, 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: chartColors.tooltipBg,
                       borderColor: chartColors.tooltipBorder,
                       borderRadius: '12px',
                       color: chartColors.tooltipText
